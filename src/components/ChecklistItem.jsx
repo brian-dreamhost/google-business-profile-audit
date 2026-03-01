@@ -1,4 +1,4 @@
-export default function ChecklistItem({ item, value, onChange, benchmark }) {
+export default function ChecklistItem({ item, value, onChange, benchmark, isAutoFilled }) {
   const isCheckbox = item.type === 'checkbox';
   const isNumber = item.type === 'number';
 
@@ -69,6 +69,14 @@ export default function ChecklistItem({ item, value, onChange, benchmark }) {
             onClick={() => isCheckbox && onChange(!value)}
           >
             {item.label}
+            {isAutoFilled && (
+              <span className="inline-flex items-center gap-1 ml-2 text-[10px] font-medium text-azure bg-azure/10 border border-azure/20 rounded px-1.5 py-0.5 align-middle">
+                <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+                </svg>
+                auto-filled
+              </span>
+            )}
           </label>
 
           {isNumber && (

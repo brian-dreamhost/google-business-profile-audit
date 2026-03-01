@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
+import BusinessSearch from './components/BusinessSearch';
 import IndustrySelector from './components/IndustrySelector';
 import ChecklistSection from './components/ChecklistSection';
 import ScoreDisplay from './components/ScoreDisplay';
@@ -38,6 +39,8 @@ function App() {
   const [showActionPlan, setShowActionPlan] = useState(false);
   const [auditHistory, setAuditHistory] = useState(() => loadFromStorage(STORAGE_KEY_HISTORY, []));
   const [savedMessage, setSavedMessage] = useState('');
+  const [autoFilledItems, setAutoFilledItems] = useState(new Set());
+  const [fetchedBusiness, setFetchedBusiness] = useState(null);
   const actionPlanRef = useRef(null);
 
   // Auto-save draft to localStorage on every change
@@ -54,6 +57,52 @@ function App() {
   const handleIndustryChange = useCallback((industryId) => {
     setSelectedIndustry(industryId);
   }, []);
+
+  // Auto-fill checklist from Google Places API data
+  const handleAutoFill = useCallback((placeData) => {
+    setFetchedBusiness(placeData);
+    const newValues = { ...values };
+    const filled = new Set();
+
+    // Checkbox items — mark true if data exists
+    if (placeData.name) {
+      newValues['business-name'] = true;
+      filled.add('business-name');
+    }
+    if (placeData.address) {
+      newValues['address'] = true;
+      filled.add('address');
+    }
+    if (placeData.phone) {
+      newValues['phone'] = true;
+      filled.add('phone');
+    }
+    if (placeData.website) {
+      newValues['website'] = true;
+      filled.add('website');
+    }
+    if (placeData.primaryCategory) {
+      newValues['primary-category'] = true;
+      filled.add('primary-category');
+    }
+    if (placeData.hasRegularHours) {
+      newValues['regular-hours'] = true;
+      filled.add('regular-hours');
+    }
+
+    // Number items — set actual values
+    if (placeData.reviewCount > 0) {
+      newValues['review-count'] = placeData.reviewCount;
+      filled.add('review-count');
+    }
+    if (placeData.rating) {
+      newValues['average-rating'] = placeData.rating;
+      filled.add('average-rating');
+    }
+
+    setValues(newValues);
+    setAutoFilledItems(filled);
+  }, [values]);
 
   // Calculate section scores
   const sectionScores = useMemo(() => {
@@ -111,6 +160,8 @@ function App() {
     if (window.confirm('Reset all checklist items? This cannot be undone.')) {
       setValues({});
       setShowActionPlan(false);
+      setAutoFilledItems(new Set());
+      setFetchedBusiness(null);
       try { localStorage.removeItem(STORAGE_KEY_DRAFT); } catch {}
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
@@ -240,6 +291,9 @@ function App() {
           )}
         </header>
 
+        {/* Business search — auto-fill from Google Places */}
+        <BusinessSearch onAutoFill={handleAutoFill} />
+
         {/* Industry selector */}
         <IndustrySelector
           industries={industries}
@@ -259,6 +313,7 @@ function App() {
                 onItemChange={handleItemChange}
                 sectionScore={sectionScores[section.id] || 0}
                 getBenchmarkForItem={getBenchmarkForItem}
+                autoFilledItems={autoFilledItems}
               />
             ))}
 
@@ -420,7 +475,7 @@ function App() {
         <footer className="mt-16 pt-8 border-t border-metal/30 no-print">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
             <p className="text-sm text-galactic text-center sm:text-left">
-              This tool helps you self-assess your Google Business Profile. Your data is saved locally and never leaves your browser.
+              This tool audits your Google Business Profile using live data from Google. Your progress is saved locally in your browser.
             </p>
             <div className="flex items-center gap-4">
               <a
