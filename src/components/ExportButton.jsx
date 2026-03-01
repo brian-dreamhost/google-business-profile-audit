@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { getBenchmark } from '../data/benchmarks';
 
 export default function ExportButton({ sections, values, selectedIndustry, industries, overallScore }) {
   const [copied, setCopied] = useState(false);
@@ -52,6 +53,22 @@ export default function ExportButton({ sections, values, selectedIndustry, indus
       text += `  ${section.title}: ${sectionScore}/${section.maxPoints} pts (${percent}%) — ${status}\n`;
     });
 
+    // Benchmark comparison for key metrics
+    const reviewBenchmark = getBenchmark(selectedIndustry, 'review-count');
+    const ratingBenchmark = getBenchmark(selectedIndustry, 'average-rating');
+    if (reviewBenchmark || ratingBenchmark) {
+      text += `\nINDUSTRY BENCHMARKS\n`;
+      text += `-------------------\n`;
+      if (reviewBenchmark) {
+        const myReviews = values['review-count'] || 0;
+        text += `  Reviews: You have ${myReviews}. ${reviewBenchmark.label}\n`;
+      }
+      if (ratingBenchmark) {
+        const myRating = values['average-rating'] || 0;
+        text += `  Rating: You have ${myRating}. ${ratingBenchmark.label}\n`;
+      }
+    }
+
     text += `\nACTION ITEMS (sorted by impact)\n`;
     text += `-------------------------------\n\n`;
 
@@ -84,6 +101,114 @@ export default function ExportButton({ sections, values, selectedIndustry, indus
     return text;
   }
 
+  function generateHTMLReport() {
+    const actionItems = [];
+    sections.forEach((section) => {
+      section.items.forEach((item) => {
+        const val = values[item.id];
+        let isComplete = false;
+        if (item.type === 'checkbox') isComplete = !!val;
+        else if (item.type === 'number') isComplete = val >= item.target;
+        if (!isComplete) {
+          actionItems.push({ ...item, sectionTitle: section.title });
+        }
+      });
+    });
+    actionItems.sort((a, b) => {
+      if (b.impact !== a.impact) return b.impact - a.impact;
+      return b.points - a.points;
+    });
+
+    const scoreColor = overallScore >= 80 ? '#00CAAA' : overallScore >= 50 ? '#F59D00' : '#FF4A48';
+    const scoreLabel = overallScore >= 90 ? 'Excellent' : overallScore >= 80 ? 'Great' : overallScore >= 60 ? 'Good Start' : overallScore >= 40 ? 'Needs Work' : 'Getting Started';
+
+    const sectionRows = sections.map((section) => {
+      const score = section.items.reduce((acc, item) => {
+        const val = values[item.id];
+        if (item.type === 'checkbox' && val) return acc + item.points;
+        if (item.type === 'number') {
+          if (val >= item.target) return acc + item.points;
+          if (val > 0) return acc + Math.round(item.points * (val / item.target));
+        }
+        return acc;
+      }, 0);
+      const pct = Math.round((score / section.maxPoints) * 100);
+      const color = pct >= 80 ? '#00CAAA' : pct >= 50 ? '#F59D00' : '#FF4A48';
+      return `<tr><td style="padding:8px 12px;border-bottom:1px solid #eee;">${section.title}</td><td style="padding:8px 12px;border-bottom:1px solid #eee;text-align:center;"><span style="color:${color};font-weight:bold;">${score}/${section.maxPoints}</span></td><td style="padding:8px 12px;border-bottom:1px solid #eee;text-align:center;"><div style="background:#eee;border-radius:4px;height:8px;width:100%;"><div style="background:${color};border-radius:4px;height:8px;width:${pct}%;"></div></div></td></tr>`;
+    }).join('');
+
+    const impactColors = { 3: '#FF4A48', 2: '#F59D00', 1: '#0073EC' };
+    const impactLabels = { 3: 'High Impact', 2: 'Medium Impact', 1: 'Low Impact' };
+    const actionRows = actionItems.map((item, idx) => {
+      const color = impactColors[item.impact];
+      return `<div style="margin-bottom:12px;padding:12px 16px;border-left:3px solid ${color};background:#fafafa;border-radius:0 8px 8px 0;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+          <strong style="font-size:14px;">#${idx + 1} ${item.label}</strong>
+          <span style="font-size:11px;color:${color};font-weight:600;background:${color}15;padding:2px 8px;border-radius:12px;">${impactLabels[item.impact]} &middot; +${item.points}pts</span>
+        </div>
+        <div style="font-size:12px;color:#666;margin-bottom:6px;">${item.sectionTitle}</div>
+        <div style="font-size:13px;margin-bottom:4px;"><strong>Do this:</strong> ${item.actionText}</div>
+        <div style="font-size:12px;color:#888;"><strong>Why:</strong> ${item.whyItMatters}</div>
+      </div>`;
+    }).join('');
+
+    // Benchmark section
+    let benchmarkHTML = '';
+    const reviewBenchmark = getBenchmark(selectedIndustry, 'review-count');
+    const ratingBenchmark = getBenchmark(selectedIndustry, 'average-rating');
+    if (reviewBenchmark || ratingBenchmark) {
+      benchmarkHTML = `<h2 style="font-size:18px;margin:24px 0 12px;color:#333;">Industry Benchmarks</h2>
+      <div style="background:#f0f4ff;padding:16px;border-radius:8px;margin-bottom:24px;">`;
+      if (reviewBenchmark) {
+        const myReviews = values['review-count'] || 0;
+        const reviewColor = myReviews >= reviewBenchmark.top ? '#00CAAA' : myReviews >= reviewBenchmark.median ? '#F59D00' : '#FF4A48';
+        benchmarkHTML += `<div style="margin-bottom:8px;font-size:13px;">Reviews: <strong style="color:${reviewColor}">${myReviews}</strong> (${reviewBenchmark.label})</div>`;
+      }
+      if (ratingBenchmark) {
+        const myRating = values['average-rating'] || 0;
+        const ratingColor = myRating >= ratingBenchmark.top ? '#00CAAA' : myRating >= ratingBenchmark.median ? '#F59D00' : '#FF4A48';
+        benchmarkHTML += `<div style="font-size:13px;">Rating: <strong style="color:${ratingColor}">${myRating}</strong> (${ratingBenchmark.label})</div>`;
+      }
+      benchmarkHTML += `</div>`;
+    }
+
+    return `<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>GBP Audit Report — ${industry ? industry.name : 'General'}</title>
+<style>*{margin:0;padding:0;box-sizing:border-box;}body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#333;max-width:800px;margin:0 auto;padding:40px 24px;}
+@media print{body{padding:20px;}}</style></head>
+<body>
+<div style="text-align:center;margin-bottom:32px;padding-bottom:24px;border-bottom:2px solid #0073EC;">
+  <h1 style="font-size:24px;color:#0073EC;margin-bottom:4px;">Google Business Profile Audit Report</h1>
+  <p style="color:#888;font-size:13px;">${industry ? industry.name + ' &middot; ' : ''}Generated ${new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</p>
+</div>
+
+<div style="text-align:center;margin-bottom:32px;">
+  <div style="display:inline-block;width:120px;height:120px;border-radius:50%;border:6px solid ${scoreColor};position:relative;line-height:120px;">
+    <span style="font-size:36px;font-weight:bold;color:${scoreColor};">${overallScore}</span>
+  </div>
+  <div style="margin-top:8px;font-size:16px;font-weight:600;color:${scoreColor};">${scoreLabel}</div>
+</div>
+
+<h2 style="font-size:18px;margin-bottom:12px;color:#333;">Section Scores</h2>
+<table style="width:100%;border-collapse:collapse;margin-bottom:24px;">
+<thead><tr style="background:#f5f5f5;"><th style="padding:8px 12px;text-align:left;font-size:13px;">Section</th><th style="padding:8px 12px;text-align:center;font-size:13px;">Score</th><th style="padding:8px 12px;text-align:center;font-size:13px;width:200px;">Progress</th></tr></thead>
+<tbody>${sectionRows}</tbody>
+</table>
+
+${benchmarkHTML}
+
+<h2 style="font-size:18px;margin-bottom:12px;color:#333;">Action Plan (${actionItems.length} items)</h2>
+${actionRows}
+
+${industry ? `<h2 style="font-size:18px;margin:24px 0 12px;color:#333;">Industry Tips for ${industry.name}</h2>
+<ul style="padding-left:20px;margin-bottom:24px;">${industry.tips.map(t => `<li style="margin-bottom:6px;font-size:13px;color:#555;">${t}</li>`).join('')}</ul>` : ''}
+
+<div style="margin-top:40px;padding-top:16px;border-top:1px solid #eee;text-align:center;font-size:11px;color:#999;">
+  Generated by DreamHost Free Marketing Tools &middot; seo-tools-tau.vercel.app/local-business/
+</div>
+</body></html>`;
+  }
+
   async function handleCopy() {
     const text = generateTextPlan();
     try {
@@ -91,7 +216,6 @@ export default function ExportButton({ sections, values, selectedIndustry, indus
       setCopied(true);
       setTimeout(() => setCopied(false), 2500);
     } catch {
-      // Fallback for older browsers
       const textarea = document.createElement('textarea');
       textarea.value = text;
       textarea.style.position = 'fixed';
@@ -107,6 +231,21 @@ export default function ExportButton({ sections, values, selectedIndustry, indus
 
   function handlePrint() {
     window.print();
+  }
+
+  function handleDownloadReport() {
+    const html = generateHTMLReport();
+    const blob = new Blob([html], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const win = window.open(url, '_blank');
+    // Auto-trigger print dialog after the report loads
+    if (win) {
+      win.addEventListener('load', () => {
+        setTimeout(() => win.print(), 300);
+      });
+    }
+    // Clean up
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
   }
 
   return (
@@ -137,13 +276,23 @@ export default function ExportButton({ sections, values, selectedIndustry, indus
       </button>
 
       <button
+        onClick={handleDownloadReport}
+        className="flex items-center justify-center gap-2 px-5 py-3 rounded-lg font-semibold text-sm border border-prince/30 text-prince hover:bg-prince/10 hover:text-white transition-all cursor-pointer focus:ring-2 focus:ring-prince focus:ring-offset-2 focus:ring-offset-abyss"
+      >
+        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+        </svg>
+        Download Report
+      </button>
+
+      <button
         onClick={handlePrint}
         className="flex items-center justify-center gap-2 px-5 py-3 rounded-lg font-semibold text-sm border border-metal/30 text-cloudy hover:text-white hover:border-metal/50 transition-all cursor-pointer focus:ring-2 focus:ring-azure focus:ring-offset-2 focus:ring-offset-abyss"
       >
         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0110.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0l.229 2.523a1.125 1.125 0 01-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0021 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 00-1.913-.247M6.34 18H5.25A2.25 2.25 0 013 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.041 48.041 0 011.913-.247m10.5 0a48.536 48.536 0 00-10.5 0m10.5 0V3.375c0-.621-.504-1.125-1.125-1.125h-8.25c-.621 0-1.125.504-1.125 1.125v3.659M18 10.5h.008v.008H18V10.5zm-3 0h.008v.008H15V10.5z" />
         </svg>
-        Print Action Plan
+        Print
       </button>
     </div>
   );

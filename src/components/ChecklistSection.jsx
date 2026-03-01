@@ -41,7 +41,7 @@ const sectionIcons = {
   ),
 };
 
-export default function ChecklistSection({ section, values, onItemChange, sectionScore }) {
+export default function ChecklistSection({ section, values, onItemChange, sectionScore, getBenchmarkForItem }) {
   const [isExpanded, setIsExpanded] = useState(true);
 
   const scorePercent = section.maxPoints > 0 ? Math.round((sectionScore / section.maxPoints) * 100) : 0;
@@ -125,6 +125,7 @@ export default function ChecklistSection({ section, values, onItemChange, sectio
               item={item}
               value={values[item.id]}
               onChange={(val) => onItemChange(item.id, val)}
+              benchmark={getBenchmarkForItem ? getBenchmarkForItem(item.id) : null}
             />
           ))}
         </div>

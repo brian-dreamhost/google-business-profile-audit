@@ -1,17 +1,51 @@
-import { useState, useMemo, useCallback, useRef } from 'react';
+import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import IndustrySelector from './components/IndustrySelector';
 import ChecklistSection from './components/ChecklistSection';
 import ScoreDisplay from './components/ScoreDisplay';
 import ActionPlan from './components/ActionPlan';
 import ExportButton from './components/ExportButton';
+import AuditHistory from './components/AuditHistory';
+import CompetitorComparison from './components/CompetitorComparison';
 import { checklistSections } from './data/checklist';
 import { industries } from './data/industries';
+import { getBenchmark } from './data/benchmarks';
+
+const STORAGE_KEY_DRAFT = 'gbp-audit-draft';
+const STORAGE_KEY_HISTORY = 'gbp-audit-history';
+
+function loadFromStorage(key, fallback) {
+  try {
+    const stored = localStorage.getItem(key);
+    return stored ? JSON.parse(stored) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function saveToStorage(key, value) {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    // localStorage full or unavailable — silently ignore
+  }
+}
 
 function App() {
-  const [selectedIndustry, setSelectedIndustry] = useState('');
-  const [values, setValues] = useState({});
+  // Load draft from localStorage on mount
+  const draft = useMemo(() => loadFromStorage(STORAGE_KEY_DRAFT, null), []);
+  const [selectedIndustry, setSelectedIndustry] = useState(draft?.industry || '');
+  const [values, setValues] = useState(draft?.values || {});
   const [showActionPlan, setShowActionPlan] = useState(false);
+  const [auditHistory, setAuditHistory] = useState(() => loadFromStorage(STORAGE_KEY_HISTORY, []));
+  const [savedMessage, setSavedMessage] = useState('');
   const actionPlanRef = useRef(null);
+
+  // Auto-save draft to localStorage on every change
+  useEffect(() => {
+    if (Object.keys(values).length > 0 || selectedIndustry) {
+      saveToStorage(STORAGE_KEY_DRAFT, { values, industry: selectedIndustry });
+    }
+  }, [values, selectedIndustry]);
 
   const handleItemChange = useCallback((itemId, value) => {
     setValues((prev) => ({ ...prev, [itemId]: value }));
@@ -34,7 +68,6 @@ function App() {
           if (val >= item.target) {
             sectionTotal += item.points;
           } else {
-            // Partial credit for number items
             sectionTotal += Math.round(item.points * (val / item.target));
           }
         }
@@ -44,7 +77,7 @@ function App() {
     return scores;
   }, [values]);
 
-  // Calculate overall score (weighted by section max points)
+  // Calculate overall score
   const overallScore = useMemo(() => {
     const totalPoints = checklistSections.reduce((sum, s) => sum + s.maxPoints, 0);
     const earnedPoints = Object.values(sectionScores).reduce((sum, s) => sum + s, 0);
@@ -62,6 +95,11 @@ function App() {
     }).length;
   }, 0);
 
+  // Get benchmark for an item based on selected industry
+  const getBenchmarkForItem = useCallback((itemId) => {
+    return getBenchmark(selectedIndustry, itemId);
+  }, [selectedIndustry]);
+
   const handleShowActionPlan = () => {
     setShowActionPlan(true);
     setTimeout(() => {
@@ -73,9 +111,45 @@ function App() {
     if (window.confirm('Reset all checklist items? This cannot be undone.')) {
       setValues({});
       setShowActionPlan(false);
+      try { localStorage.removeItem(STORAGE_KEY_DRAFT); } catch {}
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
+
+  const handleSaveAudit = () => {
+    const industryObj = industries.find((i) => i.id === selectedIndustry);
+    const auditEntry = {
+      date: new Date().toISOString(),
+      score: overallScore,
+      industry: industryObj?.name || '',
+      industryId: selectedIndustry,
+      completedItems,
+      totalItems,
+      values: { ...values },
+    };
+    const updated = [...auditHistory, auditEntry];
+    setAuditHistory(updated);
+    saveToStorage(STORAGE_KEY_HISTORY, updated);
+    setSavedMessage('Audit saved!');
+    setTimeout(() => setSavedMessage(''), 2500);
+  };
+
+  const handleLoadAudit = (audit) => {
+    if (window.confirm('Load this previous audit? Your current progress will be replaced.')) {
+      setValues(audit.values || {});
+      if (audit.industryId) setSelectedIndustry(audit.industryId);
+      setShowActionPlan(false);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
+  const handleClearHistory = () => {
+    setAuditHistory([]);
+    try { localStorage.removeItem(STORAGE_KEY_HISTORY); } catch {}
+  };
+
+  // Check if there's a restored draft
+  const hasDraft = draft && Object.keys(draft.values || {}).length > 0;
 
   return (
     <div className="min-h-screen bg-abyss bg-glow bg-grid">
@@ -113,10 +187,20 @@ function App() {
               </h1>
               <p className="text-cloudy mt-2 text-sm sm:text-base max-w-2xl">
                 Walk through this industry-specific checklist to audit your Google Business Profile.
-                Get a scored assessment and a prioritized action plan with direct links to fix each item.
+                Get a scored assessment with industry benchmarks and a prioritized action plan.
               </p>
             </div>
           </div>
+
+          {/* Restored draft notice */}
+          {hasDraft && Object.keys(values).length > 0 && (
+            <div className="flex items-center gap-2 mt-3 p-3 bg-azure/5 border border-azure/10 rounded-lg text-sm text-azure animate-fadeIn">
+              <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182" />
+              </svg>
+              Your previous progress was restored automatically.
+            </div>
+          )}
 
           {/* Quick stats bar */}
           {Object.keys(values).length > 0 && (
@@ -132,12 +216,26 @@ function App() {
                 {completedItems}/{totalItems} items complete
               </span>
               <div className="w-px h-4 bg-metal/30 hidden sm:block" />
-              <button
-                onClick={handleReset}
-                className="text-sm text-galactic hover:text-coral transition-colors cursor-pointer ml-auto py-1.5 px-2 -mr-2 rounded focus:ring-2 focus:ring-azure focus:ring-offset-2 focus:ring-offset-abyss min-h-[44px] flex items-center"
-              >
-                Reset
-              </button>
+              <div className="flex items-center gap-2 ml-auto">
+                {savedMessage && (
+                  <span className="text-sm text-turtle font-medium animate-fadeIn">{savedMessage}</span>
+                )}
+                <button
+                  onClick={handleSaveAudit}
+                  className="text-sm text-azure hover:text-white transition-colors cursor-pointer py-1.5 px-3 rounded-lg border border-azure/20 hover:border-azure/40 focus:ring-2 focus:ring-azure focus:ring-offset-2 focus:ring-offset-abyss min-h-[44px] flex items-center gap-1.5"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M17.593 3.322c1.1.128 1.907 1.077 1.907 2.185V21L12 17.25 4.5 21V5.507c0-1.108.806-2.057 1.907-2.185a48.507 48.507 0 0111.186 0z" />
+                  </svg>
+                  Save Audit
+                </button>
+                <button
+                  onClick={handleReset}
+                  className="text-sm text-galactic hover:text-coral transition-colors cursor-pointer py-1.5 px-2 rounded focus:ring-2 focus:ring-azure focus:ring-offset-2 focus:ring-offset-abyss min-h-[44px] flex items-center"
+                >
+                  Reset
+                </button>
+              </div>
             </div>
           )}
         </header>
@@ -160,8 +258,15 @@ function App() {
                 values={values}
                 onItemChange={handleItemChange}
                 sectionScore={sectionScores[section.id] || 0}
+                getBenchmarkForItem={getBenchmarkForItem}
               />
             ))}
+
+            {/* Competitor Comparison */}
+            <CompetitorComparison
+              values={values}
+              selectedIndustry={selectedIndustry}
+            />
 
             {/* Generate action plan button */}
             <div className="flex flex-col sm:flex-row items-center gap-4 py-6">
@@ -205,6 +310,13 @@ function App() {
                 overallScore={overallScore}
                 sectionScores={sectionScores}
                 sections={checklistSections}
+              />
+
+              {/* Audit History */}
+              <AuditHistory
+                history={auditHistory}
+                onLoadAudit={handleLoadAudit}
+                onClearHistory={handleClearHistory}
               />
 
               {/* Quick links to GBP */}
@@ -297,7 +409,7 @@ function App() {
                   </div>
                 </div>
                 <p className="text-xs text-galactic mt-3 leading-relaxed">
-                  Each section has weighted points based on impact. Number fields give partial credit. Focus on high-impact items first.
+                  Each section has weighted points based on impact. Number fields give partial credit. Benchmarks show how you compare to industry averages.
                 </p>
               </div>
             </div>
@@ -308,7 +420,7 @@ function App() {
         <footer className="mt-16 pt-8 border-t border-metal/30 no-print">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
             <p className="text-sm text-galactic text-center sm:text-left">
-              This tool helps you self-assess your Google Business Profile. It does not access your actual GBP data.
+              This tool helps you self-assess your Google Business Profile. Your data is saved locally and never leaves your browser.
             </p>
             <div className="flex items-center gap-4">
               <a
