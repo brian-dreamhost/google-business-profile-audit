@@ -295,6 +295,23 @@ function BusinessSearch({ onAutoFill }) {
                   </span>
                 </div>
               )}
+              {selectedBusiness.amenityCount > 0 && (
+                <div className="flex items-center gap-1.5 bg-abyss/50 border border-metal/20 rounded-lg px-3 py-1.5">
+                  <svg className="w-3.5 h-3.5 text-cloudy" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9.568 3H5.25A2.25 2.25 0 003 5.25v4.318c0 .597.237 1.17.659 1.591l9.581 9.581c.699.699 1.78.872 2.607.33a18.095 18.095 0 005.223-5.223c.542-.827.369-1.908-.33-2.607L11.16 3.66A2.25 2.25 0 009.568 3z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 6h.008v.008H6V6z" />
+                  </svg>
+                  <span className="text-sm text-cloudy">{selectedBusiness.amenityCount} attributes</span>
+                </div>
+              )}
+              {selectedBusiness.hasAccessibility && (
+                <div className="flex items-center gap-1.5 bg-abyss/50 border border-metal/20 rounded-lg px-3 py-1.5">
+                  <svg className="w-3.5 h-3.5 text-turtle" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span className="text-sm text-turtle">Accessibility</span>
+                </div>
+              )}
             </div>
 
             {/* What will be auto-filled */}
@@ -317,8 +334,23 @@ function BusinessSearch({ onAutoFill }) {
                   {selectedBusiness.primaryCategory && (
                     <span className="text-xs bg-turtle/10 text-turtle border border-turtle/20 rounded px-2 py-0.5">Primary category</span>
                   )}
+                  {selectedBusiness.secondaryCategoryCount >= 2 && (
+                    <span className="text-xs bg-turtle/10 text-turtle border border-turtle/20 rounded px-2 py-0.5">Secondary categories</span>
+                  )}
+                  {selectedBusiness.hasEditorialSummary && (
+                    <span className="text-xs bg-turtle/10 text-turtle border border-turtle/20 rounded px-2 py-0.5">Description</span>
+                  )}
                   {selectedBusiness.hasRegularHours && (
                     <span className="text-xs bg-turtle/10 text-turtle border border-turtle/20 rounded px-2 py-0.5">Regular hours</span>
+                  )}
+                  {selectedBusiness.hasSecondaryHours && (
+                    <span className="text-xs bg-turtle/10 text-turtle border border-turtle/20 rounded px-2 py-0.5">Additional hours</span>
+                  )}
+                  {selectedBusiness.hasAccessibility && (
+                    <span className="text-xs bg-turtle/10 text-turtle border border-turtle/20 rounded px-2 py-0.5">Accessibility</span>
+                  )}
+                  {selectedBusiness.amenityCount >= 3 && (
+                    <span className="text-xs bg-turtle/10 text-turtle border border-turtle/20 rounded px-2 py-0.5">Amenities</span>
                   )}
                   {selectedBusiness.reviewCount > 0 && (
                     <span className="text-xs bg-turtle/10 text-turtle border border-turtle/20 rounded px-2 py-0.5">Review count</span>
@@ -326,10 +358,13 @@ function BusinessSearch({ onAutoFill }) {
                   {selectedBusiness.rating && (
                     <span className="text-xs bg-turtle/10 text-turtle border border-turtle/20 rounded px-2 py-0.5">Star rating</span>
                   )}
+                  {selectedBusiness.reviewsMentionKeywords && (
+                    <span className="text-xs bg-turtle/10 text-turtle border border-turtle/20 rounded px-2 py-0.5">Review keywords</span>
+                  )}
                 </div>
                 {selectedBusiness.photoCount > 0 && (
                   <p className="text-xs text-galactic mt-2">
-                    We found {selectedBusiness.photoCount} photos. You'll categorize them by type (exterior, interior, team, product) in the checklist below.
+                    Photos detected on your listing. Categorize them by type (exterior, interior, team, product) in the checklist below.
                   </p>
                 )}
               </div>

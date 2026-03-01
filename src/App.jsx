@@ -64,7 +64,7 @@ function App() {
     const newValues = { ...values };
     const filled = new Set();
 
-    // Checkbox items — mark true if data exists
+    // --- Basic Information ---
     if (placeData.name) {
       newValues['business-name'] = true;
       filled.add('business-name');
@@ -85,12 +85,34 @@ function App() {
       newValues['primary-category'] = true;
       filled.add('primary-category');
     }
+    if (placeData.secondaryCategoryCount >= 2) {
+      newValues['secondary-categories'] = true;
+      filled.add('secondary-categories');
+    }
+    if (placeData.hasEditorialSummary) {
+      newValues['description'] = true;
+      filled.add('description');
+    }
+
+    // --- Hours & Attributes ---
     if (placeData.hasRegularHours) {
       newValues['regular-hours'] = true;
       filled.add('regular-hours');
     }
+    if (placeData.hasSecondaryHours) {
+      newValues['more-hours'] = true;
+      filled.add('more-hours');
+    }
+    if (placeData.hasAccessibility) {
+      newValues['attributes-accessibility'] = true;
+      filled.add('attributes-accessibility');
+    }
+    if (placeData.amenityCount >= 3) {
+      newValues['attributes-amenities'] = true;
+      filled.add('attributes-amenities');
+    }
 
-    // Number items — set actual values
+    // --- Reviews & Reputation ---
     if (placeData.reviewCount > 0) {
       newValues['review-count'] = placeData.reviewCount;
       filled.add('review-count');
@@ -98,6 +120,10 @@ function App() {
     if (placeData.rating) {
       newValues['average-rating'] = placeData.rating;
       filled.add('average-rating');
+    }
+    if (placeData.reviewsMentionKeywords) {
+      newValues['review-keywords'] = true;
+      filled.add('review-keywords');
     }
 
     setValues(newValues);
