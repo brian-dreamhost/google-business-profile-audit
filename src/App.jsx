@@ -225,6 +225,58 @@ function App() {
     try { localStorage.removeItem(STORAGE_KEY_HISTORY); } catch {}
   };
 
+  const fillTestData = useCallback(() => {
+    const testValues = {
+      // Basic Information
+      'business-name': true,
+      'address': true,
+      'phone': true,
+      'website': true,
+      'primary-category': true,
+      'secondary-categories': true,
+      'description': true,
+      // Photos & Visual Content
+      'logo': true,
+      'cover-photo': true,
+      'exterior-photos': 4,
+      'interior-photos': 3,
+      'team-photos': 2,
+      'product-photos': 6,
+      // Hours & Attributes
+      'regular-hours': true,
+      'special-hours': true,
+      'more-hours': false,
+      'attributes-accessibility': true,
+      'attributes-amenities': true,
+      'attributes-highlights': false,
+      // Reviews & Reputation
+      'review-count': 47,
+      'average-rating': 4.6,
+      'review-response-rate': true,
+      'review-response-time': true,
+      'review-keywords': true,
+      // Posts & Updates
+      'recent-post': true,
+      'post-frequency': true,
+      'post-offers': false,
+      'post-events': false,
+      'post-photos': true,
+      // Products & Services
+      'services-listed': true,
+      'services-prices': true,
+      'products-cataloged': false,
+      'services-complete': true,
+      // Q&A Section
+      'qa-seeded': true,
+      'qa-responsive': true,
+      'qa-upvoted': false,
+    };
+    setValues(testValues);
+    setSelectedIndustry('restaurant');
+    setAutoFilledItems(new Set());
+    setFetchedBusiness(null);
+  }, []);
+
   // Check if there's a restored draft
   const hasDraft = draft && Object.keys(draft.values || {}).length > 0;
 
@@ -267,6 +319,16 @@ function App() {
                 Get a scored assessment with industry benchmarks and a prioritized action plan.
               </p>
             </div>
+          </div>
+
+          <div className="flex justify-end mb-4">
+            <button
+              type="button"
+              onClick={fillTestData}
+              className="px-3 py-1.5 text-xs font-mono bg-prince/20 text-prince border border-prince/30 rounded hover:bg-prince/30 transition-colors focus:outline-none focus:ring-2 focus:ring-prince focus:ring-offset-2 focus:ring-offset-abyss"
+            >
+              Fill Test Data
+            </button>
           </div>
 
           {/* Restored draft notice */}
