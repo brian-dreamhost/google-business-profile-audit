@@ -282,7 +282,7 @@ function App() {
 
   return (
     <div className="min-h-screen bg-abyss bg-glow bg-grid">
-      <div className="relative z-10 max-w-6xl mx-auto px-4 py-8 sm:py-12">
+      <div className="relative z-10 max-w-[1600px] mx-auto px-4 py-8 sm:py-12">
         {/* Breadcrumb */}
         <nav className="mb-8 text-sm text-galactic">
           <a
